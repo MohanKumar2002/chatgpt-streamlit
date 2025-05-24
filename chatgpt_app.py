@@ -1,74 +1,57 @@
 import streamlit as st
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
+from transformers import pipeline, set_seed
+import time
+import os
 
-# Set page config
-st.set_page_config(page_title="ChatGPT (Dev)", page_icon="💬", layout="centered")
+# Apply custom CSS
+with open("assets/styles.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Title and description
-st.title("💬 ChatGPT - Local Dev Version")
-st.markdown("A private ChatGPT built using Hugging Face's `DialoGPT`. Ideal for development use.")
+# App Configuration
+st.set_page_config(page_title="Dev ChatGPT", layout="wide")
 
-# Load model and tokenizer once
-@st.cache_resource
-def load_model():
-    model_name = "microsoft/DialoGPT-medium"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    return tokenizer, model
+# Initialize session state
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-tokenizer, model = load_model()
+if "model_name" not in st.session_state:
+    st.session_state.model_name = "microsoft/DialoGPT-medium"
 
-# Initialize chat history
-if "chat_history_ids" not in st.session_state:
-    st.session_state.chat_history_ids = None
-if "past_inputs" not in st.session_state:
-    st.session_state.past_inputs = []
-if "generated_responses" not in st.session_state:
-    st.session_state.generated_responses = []
-
-# Input form
-with st.form("chat_form", clear_on_submit=True):
-    user_input = st.text_input("You:", "")
-    submitted = st.form_submit_button("Send")
-
-if submitted and user_input:
-    # Encode user input + add eos token
-    new_input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors='pt')
-
-    # Append tokens to history
-    bot_input_ids = (
-        torch.cat([st.session_state.chat_history_ids, new_input_ids], dim=-1)
-        if st.session_state.chat_history_ids is not None
-        else new_input_ids
+# Sidebar
+with st.sidebar:
+    st.markdown("## ⚙️ Settings")
+    st.session_state.model_name = st.selectbox(
+        "Choose a model", 
+        ["microsoft/DialoGPT-medium", "gpt2", "distilgpt2"], 
+        index=0
     )
+    
+    st.markdown("---")
+    st.markdown("## 🕘 Chat History")
+    for i, (user, bot) in enumerate(st.session_state.history):
+        st.markdown(f"**You:** {user}")
+        st.markdown(f"**Bot:** {bot}")
+    if st.button("🧹 Clear History"):
+        st.session_state.history = []
 
-    # Generate response
-    output_ids = model.generate(
-        bot_input_ids,
-        max_length=1000,
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        top_k=50,
-        top_p=0.95,
-        temperature=0.75
-    )
+# Header
+st.markdown("<h1 class='title'>🤖 Dev ChatGPT - Model Testing Playground</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Test, fine-tune, and build your own chat models</p>", unsafe_allow_html=True)
 
-    # Extract and decode response
-    response = tokenizer.decode(output_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
+# Load model
+generator = pipeline("text-generation", model=st.session_state.model_name)
+set_seed(42)
 
-    # Update history
-    st.session_state.chat_history_ids = output_ids
-    st.session_state.past_inputs.append(user_input)
-    st.session_state.generated_responses.append(response)
+# Chat Input
+user_input = st.chat_input("Type your message...")
 
-# Display chat history
-for i in range(len(st.session_state.past_inputs)):
-    st.markdown(f"**You:** {st.session_state.past_inputs[i]}")
-    st.markdown(f"**Bot:** {st.session_state.generated_responses[i]}")
+if user_input:
+    with st.spinner("Thinking..."):
+        response = generator(user_input, max_length=150, num_return_sequences=1, do_sample=True)
+        full_response = response[0]['generated_text']
+        cleaned = full_response[len(user_input):].strip()
 
-# Clear button
-if st.button("🧹 Clear Chat"):
-    st.session_state.chat_history_ids = None
-    st.session_state.past_inputs = []
-    st.session_state.generated_responses = []
+        st.chat_message("user").write(user_input)
+        st.chat_message("assistant").write(cleaned)
+
+        st.session_state.history.append((user_input, cleaned))
