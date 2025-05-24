@@ -1,57 +1,49 @@
 import streamlit as st
 from transformers import pipeline, set_seed
-import time
-import os
 
-# Apply custom CSS
+# Set Streamlit page config — must be first!
+st.set_page_config(page_title="Dev ChatGPT", layout="wide")
+
+# Load CSS
 with open("assets/styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# App Configuration
-st.set_page_config(page_title="Dev ChatGPT", layout="wide")
+# Initialize model
+generator = pipeline('text-generation', model='gpt2')
+set_seed(42)
 
 # Initialize session state
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "model_name" not in st.session_state:
-    st.session_state.model_name = "microsoft/DialoGPT-medium"
-
-# Sidebar
+# Sidebar for chat history
 with st.sidebar:
-    st.markdown("## ⚙️ Settings")
-    st.session_state.model_name = st.selectbox(
-        "Choose a model", 
-        ["microsoft/DialoGPT-medium", "gpt2", "distilgpt2"], 
-        index=0
-    )
-    
-    st.markdown("---")
-    st.markdown("## 🕘 Chat History")
-    for i, (user, bot) in enumerate(st.session_state.history):
-        st.markdown(f"**You:** {user}")
-        st.markdown(f"**Bot:** {bot}")
-    if st.button("🧹 Clear History"):
+    st.title("💬 Chat History")
+    if st.session_state.history:
+        for i, (user, bot) in enumerate(st.session_state.history[::-1]):
+            st.markdown(f"**You:** {user}")
+            st.markdown(f"**GPT:** {bot}")
+            st.markdown("---")
+    else:
+        st.info("No chats yet.")
+
+    if st.button("🗑️ Clear History"):
         st.session_state.history = []
+        st.experimental_rerun()
 
-# Header
-st.markdown("<h1 class='title'>🤖 Dev ChatGPT - Model Testing Playground</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Test, fine-tune, and build your own chat models</p>", unsafe_allow_html=True)
+# Main UI
+st.title("🧠 Dev ChatGPT")
+st.subheader("Chat interface for building and testing models")
 
-# Load model
-generator = pipeline("text-generation", model=st.session_state.model_name)
-set_seed(42)
+user_input = st.text_input("Ask something...", key="input")
 
-# Chat Input
-user_input = st.chat_input("Type your message...")
+if st.button("Send") and user_input:
+    with st.spinner("Generating..."):
+        response = generator(user_input, max_length=100, num_return_sequences=1)[0]['generated_text']
+        st.session_state.history.append((user_input, response))
 
-if user_input:
-    with st.spinner("Thinking..."):
-        response = generator(user_input, max_length=150, num_return_sequences=1, do_sample=True)
-        full_response = response[0]['generated_text']
-        cleaned = full_response[len(user_input):].strip()
-
-        st.chat_message("user").write(user_input)
-        st.chat_message("assistant").write(cleaned)
-
-        st.session_state.history.append((user_input, cleaned))
+# Display last interaction
+if st.session_state.history:
+    user_msg, bot_msg = st.session_state.history[-1]
+    st.markdown(f"**You:** {user_msg}")
+    st.markdown(f"**GPT:** {bot_msg}")
