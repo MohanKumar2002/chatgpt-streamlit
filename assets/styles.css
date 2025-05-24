@@ -1,34 +1,29 @@
-/* GPT-style UI enhancements */
-.title {
-    font-size: 2.5rem;
-    font-weight: bold;
-    text-align: center;
-    color: #4A90E2;
-    margin-top: 20px;
-}
-
-.subtitle {
-    text-align: center;
-    font-size: 1.1rem;
-    color: #888;
-    margin-bottom: 40px;
-}
-
-h1, h2, h3 {
+/* Style for GPT-style theme */
+body {
+    background-color: #f5f7fa;
     font-family: 'Segoe UI', sans-serif;
 }
 
-.stChatMessage {
-    background-color: #f2f2f2;
-    border-radius: 10px;
-    padding: 10px;
-    margin: 5px 0;
+h1, h2 {
+    color: #333333;
 }
 
-.css-1y4p8pa {
+.block-container {
     padding-top: 2rem;
+    padding-bottom: 2rem;
 }
 
-body {
-    background-color: #fafbfc;
+.sidebar .sidebar-content {
+    background-color: #ffffff;
+    border-right: 1px solid #e6e6e6;
+}
+
+div[data-testid="stTextInput"] > label {
+    font-weight: bold;
+    color: #4b4b4b;
+}
+
+button[kind="primary"] {
+    background-color: #4CAF50;
+    color: white;
 }
